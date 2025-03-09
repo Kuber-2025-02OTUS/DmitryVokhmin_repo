@@ -1,0 +1,48 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: homework-1
+  namespace: homework
+spec:
+  containers:
+  - name: nginx
+    resources:
+      limits:
+        memory: "128Mi"
+        cpu: "500m"
+      requests:
+        memory: "64Mi"
+        cpu: "250m"
+    image: nginx
+    lifecycle:
+      preStop:
+        exec:
+          command: ["sh", "-c", "rm -rf /homework/* && echo 'Cleaning up /homework directory'"]
+    ports:
+    - containerPort: 8000
+    volumeMounts:
+    - name: workdir
+      mountPath: /homework
+    - name: nginx-config-volume
+      mountPath: /etc/nginx/conf.d/
+  initContainers:
+  - name: init-pod
+    image: busybox:latest
+    command:
+    - sh
+    - -c
+    - |
+      wget --no-check-certificate -O /init/website.zip https://cloud.vxlab.ru/index.php/s/xKifzjM8gi2CkMC/download/creative-scroll-website.zip && \
+      unzip /init/website.zip -d /init && \
+      rm /init/website.zip
+    volumeMounts:
+    - name: workdir
+      mountPath: /init
+  dnsPolicy: Default
+  volumes:
+  - name: workdir
+    emptyDir:
+      sizeLimit: 300Mi
+  - name: nginx-config-volume
+    configMap:
+      name: nginx-config
