@@ -3,6 +3,8 @@ kind: Pod
 metadata:
   name: homework-1
   namespace: homework
+  labels:
+    app: homework-site-pod
 spec:
   containers:
   - name: nginx
@@ -20,6 +22,7 @@ spec:
           command: ["sh", "-c", "rm -rf /homework/* && echo 'Cleaning up /homework directory'"]
     ports:
     - containerPort: 8000
+      name: site-pod-port
     volumeMounts:
     - name: workdir
       mountPath: /homework
@@ -32,7 +35,7 @@ spec:
     - sh
     - -c
     - |
-      wget --no-check-certificate -O /init/website.zip https://cloud.vxlab.ru/index.php/s/xKifzjM8gi2CkMC/download/creative-scroll-website.zip && \
+      wget --no-check-certificate -O /init/website.zip https://cloud.vxlab.ru/index.php/s/WcsoMq5e75dCAks/download/creative-scroll-website.zip && \
       unzip /init/website.zip -d /init && \
       rm /init/website.zip
     volumeMounts:
@@ -42,7 +45,7 @@ spec:
   volumes:
   - name: workdir
     emptyDir:
-      sizeLimit: 300Mi
+      sizeLimit: 500Mi
   - name: nginx-config-volume
     configMap:
       name: nginx-config
