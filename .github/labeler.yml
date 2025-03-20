@@ -1,3 +1,6 @@
 kubernetes-intro:
   - kubernetes-intro/*
+
+kubernetes-networks:
+   - kubernetes-networks/*
    
