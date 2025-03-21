@@ -1,0 +1,80 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: homework-deployment
+  namespace: homework
+  labels:
+    app: homework-deployment
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app: homework-site-pod
+  template:
+    metadata:
+      labels:
+        app: homework-site-pod
+    spec:
+      nodeSelector:
+        homework: "true"
+      containers:
+      - name: nginx
+        resources:
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+          requests:
+            memory: "64Mi"
+            cpu: "250m"
+        image: nginx
+        readinessProbe:
+          exec:
+            command:
+            - test
+            - -f
+            - /homework/ready-html/index.html
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        lifecycle:
+          preStop:
+            exec:
+              command: ["sh", "-c", "rm -rf /homework/* && echo 'Cleaning up /homework directory'"]
+        ports:
+        - containerPort: 8000
+          name: site-pod-port
+        volumeMounts:
+        - name: workdir
+          mountPath: /homework
+        - name: nginx-config-volume
+          mountPath: /etc/nginx/conf.d/
+      initContainers:
+      - name: init-pod
+        image: busybox:latest
+        command:
+        - sh
+        - -c
+        - |
+          # Принудительная очистка каталога /init перед началом работы
+          echo "Cleaning up /init directory..."
+          rm -rf /init/* || true
+          echo "Cleanup completed"
+          # Использование флагов для принудительной перезаписи
+          wget --no-check-certificate -O /init/website.zip https://cloud.vxlab.ru/index.php/s/WcsoMq5e75dCAks/download/creative-scroll-website.zip && \
+          unzip -o /init/website.zip -d /init && \
+          rm /init/website.zip
+        volumeMounts:
+        - name: workdir
+          mountPath: /init
+      dnsPolicy: Default
+      volumes:
+      - name: workdir
+        emptyDir:
+          sizeLimit: 500Mi
+      - name: nginx-config-volume
+        configMap:
+          name: nginx-config
