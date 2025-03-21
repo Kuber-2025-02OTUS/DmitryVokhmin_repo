@@ -17,7 +17,45 @@
  - namespace.yaml
  - configmap.yaml
  - pod.yaml
- 
+
+## Homework 3: Kubernetes controllers. ReplicaSet, Deployment,
+1. Cоздан манифест namespace.yaml для namespace с именем homework.
+(*На самом деле на прошлом занятии создан, но прилагаю файл к этому 
+домашнему заданию также.*)
+
+2. Создан манифест Deployment.
+  - Указанн namespace `homework`
+  - Заданно количество реплик `replicas: 3`
+  - Добавлена `readnessProbe`:
+```yaml
+  readinessProbe:
+    exec:
+      command:
+      - test
+      - -f
+      - /homework/ready-html/index.html
+    initialDelaySeconds: 5
+    periodSeconds: 5
+```
+  - добавлена стратегия обновления:
+  ```yaml
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+  ```
+
+3. (Задание*) Добавить условие запуска подов на нодах с меткой.
+  - добавлена метка к ноде (для миникуба по своему задается)
+```shell
+kubectl label nodes minikube homework=true
+```
+  - добавлено условие в deployment
+```yaml
+  nodeSelector:
+    homework: "true"
+```
 
 ## Homework 4: Сетевая подсистема и сущности Kubernetes
 
