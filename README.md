@@ -1,7 +1,7 @@
 # Репозиторий для выполнения домашних заданий курса "Инфраструктурная платформа на основе Kubernetes-2025-02" 
 
 
-## Homework 2: Знакомство с Kubernetes, основные понятия и архитектура
+## Homework 1: Знакомство с Kubernetes, основные понятия и архитектура
  Папка ./kubernetes-intro
  в папке 3 файла:
  - namespace.yaml - создается namespace homework
@@ -18,7 +18,7 @@
  - configmap.yaml
  - pod.yaml
 
-## Homework 3: Kubernetes controllers. ReplicaSet, Deployment,
+## Homework 2: Kubernetes controllers. ReplicaSet, Deployment,
 1. Cоздан манифест namespace.yaml для namespace с именем homework.
 (*На самом деле на прошлом занятии создан, но прилагаю файл к этому 
 домашнему заданию также.*)
@@ -57,7 +57,7 @@ kubectl label nodes minikube homework=true
     homework: "true"
 ```
 
-## Homework 4: Сетевая подсистема и сущности Kubernetes
+## Homework 3: Сетевая подсистема и сущности Kubernetes
 
 Папка ./kubernetes-network
 Домашняя работа - продолжение работы проделанной в homework 2.
@@ -118,3 +118,44 @@ B ingress добавлено rewrite правило которое перепи�
     cert-manager.io/cluster-issuer: "letsencrypt-prod"
     nginx.ingress.kubernetes.io/ssl-redirect: "true"  # Для NGINX Ingress
 ```
+
+## Homework 4: Volumes, StorageClass, PV, PVC
+Папка ./kubernetes-volumes
+
+В рамках домашнего задания было сделано следующее.
+- создан манифест pvc.yaml запрашивающий хранилие с storageClass по-умоланию.
+Для того чтобы использовался storageClass по-умоланию cледует убрать описание `  storageClassName: ...`
+
+- был создан (ранее) манифест config map: configMap.yaml который заводит в под файл с конфигурацией nginx в папку: /etc/nginx/conf.d/ (немного не точно по заданию, но этот configMap здесь прям нужен чтобы сконфигурировать nginx)
+
+- манифест deployment.yaml поправлен для использования созданного ранее pvc.yaml
+Изменён следующий фрагмент:
+```yaml
+      volumes:
+      - name: workdir
+        persistentVolumeClaim:
+          claimName: homework-pvc
+```
+
+- В манифесте deployment.yaml добавлено(ранее) использование созданной configMap
+```yaml
+      volumes:
+        ...
+      - name: nginx-config-volume
+        configMap:
+          name: nginx-config
+        ...
+```
+
+и здесь:
+```yaml
+        volumeMounts:
+        ...
+        - name: nginx-config-volume
+          mountPath: /etc/nginx/conf.d/
+        ...
+```
+
+### Задание с *
+ - Был создан storageClass: storageclass.yaml с указанным reclaimPolicy и provisioner
+ - Был создан PVC для использования этого storageClass: pvc-storage-class.yaml

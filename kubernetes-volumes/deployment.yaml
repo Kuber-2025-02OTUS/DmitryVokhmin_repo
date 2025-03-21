@@ -20,8 +20,6 @@ spec:
       labels:
         app: homework-site-pod
     spec:
-      nodeSelector:
-        homework: "true"
       containers:
       - name: nginx
         resources:
@@ -73,8 +71,8 @@ spec:
       dnsPolicy: Default
       volumes:
       - name: workdir
-        emptyDir:
-          sizeLimit: 500Mi
+        persistentVolumeClaim:
+          claimName: homework-pvc
       - name: nginx-config-volume
         configMap:
           name: nginx-config
