@@ -1,0 +1,10 @@
+# kubernetes-volumes/cm.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: homework-config
+  namespace: homework
+data:
+  database_url: "cm.postgres:5432"
+  api_key: "AB506F0845AC8"
+  debug_mode: "true"

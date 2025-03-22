@@ -6,4 +6,6 @@ kubernetes-controllers:
 
 kubernetes-networks:
    - kubernetes-networks/*
-   
+
+ kubernetes-volumes:
+   - kubernetes-volumes/*
