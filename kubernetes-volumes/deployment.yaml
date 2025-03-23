@@ -20,8 +20,6 @@ spec:
       labels:
         app: homework-site-pod
     spec:
-      nodeSelector:
-        homework: "true"
       containers:
       - name: nginx
         resources:
@@ -52,6 +50,8 @@ spec:
           mountPath: /homework
         - name: nginx-config-volume
           mountPath: /etc/nginx/conf.d/
+        - name:  configdir
+          mountPath: /homework/conf
       initContainers:
       - name: init-pod
         image: busybox:latest
@@ -61,7 +61,8 @@ spec:
         - |
           # Принудительная очистка каталога /init перед началом работы
           echo "Cleaning up /init directory..."
-          rm -rf /init/* || true
+          # rm -rf /init/* || true
+          find /init -mindepth 1 -maxdepth 1 -not -name 'conf' -exec rm -rf {} \;
           echo "Cleanup completed"
           # Использование флагов для принудительной перезаписи
           wget --no-check-certificate -O /init/website.zip https://cloud.vxlab.ru/index.php/s/WcsoMq5e75dCAks/download/creative-scroll-website.zip && \
@@ -73,8 +74,18 @@ spec:
       dnsPolicy: Default
       volumes:
       - name: workdir
-        emptyDir:
-          sizeLimit: 500Mi
+        persistentVolumeClaim:
+          claimName: homework-pvc
       - name: nginx-config-volume
         configMap:
           name: nginx-config
+      - name: configdir
+        configMap:
+          name: homework-config
+          items:
+          - key: database_url
+            path: database_url
+          - key: api_key
+            path: api_key
+          - key: debug_mode
+            path: debug_mode
