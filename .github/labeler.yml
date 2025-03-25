@@ -9,3 +9,6 @@ kubernetes-networks:
 
  kubernetes-volumes:
    - kubernetes-volumes/*
+
+kubernetes-security:
+   - kubernetes-security/*

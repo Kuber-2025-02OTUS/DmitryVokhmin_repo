@@ -183,3 +183,35 @@ volumes:
 ### Задание с *
  - Был создан storageClass: storageclass.yaml с указанным reclaimPolicy и provisioner
  - Был создан PVC для использования этого storageClass: pvc-storage-class.yaml
+
+
+## Homework 5: Настройка сервисных аккаунтов и ограничение прав для них
+Папка ./kubernetes-security
+
+1. Было создано: 
+ - ServiceAccount c именем `monitoring` в namespace `homework` (serviceaccount.yaml)
+ - ClusterRole c именем `monitoring-metrics` (clusterrole.yaml)
+ - ClusterRoleBinding c именем `monitoring-metrics-binding` (clusterrolebinding.yaml)
+
+2. Был изменен манифест deployment.yaml из предыдущего задания, чтобы он использовал созданный ServiceAccount (deployment.yaml)
+3. Было создано:
+  - ServiceAccount c именем `cd` в namespace `homework` (serviceaccount.yaml)
+  - Role c именем `admin` в namespace `homework` (role.yaml)
+  - RoleBinding c именем `cd-admin-binding` в namespace `homework` (rolebinding.yaml)
+
+4. Создан токен доступа для ServiceAccount `cd` в namespace `homework` (файл: token)
+```yaml
+kubectl create token cd -n homework --duration=24h > token
+```
+
+
+5. Создан kubeconfig для ServiceAccount `cd` в namespace `homework` (файл: cd-kubeconfig.yaml)
+  - Cluser Name: `kubectl config view --minify -o jsonpath='{.clusters[0].name}'`
+  - Cluster Server: `kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}'`
+  - certificate-authority-data:`cat /home/vokhmin/.minikube/ca.crt | base64 | tr -d '\n'`
+
+### Задание с *
+  deployment.yaml был модифицирован чтобы при старте initContainer получать метрики с API сервера и сохранять их в /init/ready-html/metrics.html
+  Для этого был изменен блок initContainers[0].command в deployment.yaml для получения метрик и сохранения их в файл /init/ready-html/metrics.html
+  В основном контейнере этот файл будет доступен в директории /homework/ready-html/metrics.html
+  Просмотр страницы будет доступен по адресу https://homework.otus/metrics.html
