@@ -1,0 +1,110 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: homework-deployment
+  namespace: homework
+  labels:
+    app: homework-deployment
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app: homework-site-pod
+  template:
+    metadata:
+      labels:
+        app: homework-site-pod
+    spec:
+      serviceAccountName: monitoring
+      containers:
+      - name: nginx
+        resources:
+          limits:
+            memory: "256Mi"
+            cpu: "1000m"
+          requests:
+            memory: "128Mi"
+            cpu: "500m"
+        image: nginx
+        readinessProbe:
+          exec:
+            command:
+            - test
+            - -f
+            - /homework/ready-html/index.html
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        lifecycle:
+          preStop:
+            exec:
+              command: ["sh", "-c", "rm -rf /homework/* && echo 'Cleaning up /homework directory'"]
+        ports:
+        - containerPort: 8000
+          name: site-pod-port
+        volumeMounts:
+        - name: workdir
+          mountPath: /homework
+        - name: nginx-config-volume
+          mountPath: /etc/nginx/conf.d/
+        - name:  configdir
+          mountPath: /homework/conf
+      initContainers:
+      - name: init-pod
+        image: busybox:latest
+        command:
+        - sh
+        - -c
+        - |
+          # Принудительная очистка каталога /init перед началом работы
+          echo "Cleaning up /init directory..."
+          # rm -rf /init/* || true
+          find /init -mindepth 1 -maxdepth 1 -not -name 'conf' -exec rm -rf {} \;
+          echo "Cleanup completed"
+          # Использование флагов для принудительной перезаписи
+          wget --no-check-certificate -O /init/website.zip https://cloud.vxlab.ru/index.php/s/WcsoMq5e75dCAks/download/creative-scroll-website.zip && \
+          unzip -o /init/website.zip -d /init && \
+          rm /init/website.zip
+
+          # Создаем каталог ready-html, если его еще нет
+          mkdir -p /init/ready-html
+          
+          # Получаем метрики и сохраняем их непосредственно в ready-html/index.html
+          echo "Fetching metrics from Kubernetes API server..."
+          
+          # Определяем адрес API-сервера из переменных окружения
+          API_SERVER="https://${KUBERNETES_SERVICE_HOST}:${KUBERNETES_SERVICE_PORT}"
+          TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
+
+          echo "Using API server address: ${API_SERVER}"
+          if wget -O /init/ready-html/metrics.html --no-check-certificate --header "Authorization: Bearer ${TOKEN}" "${API_SERVER}/metrics"; then
+            echo "Successfully fetched metrics from API server"
+          else
+            echo "Failed to fetch metrics, creating placeholder file"
+            echo "<html><body><h1>Metrics temporarily unavailable</h1></body></html>" > /init/ready-html/metrics.html
+          fi
+        volumeMounts:
+        - name: workdir
+          mountPath: /init
+      dnsPolicy: Default
+      volumes:
+      - name: workdir
+        persistentVolumeClaim:
+          claimName: homework-pvc
+      - name: nginx-config-volume
+        configMap:
+          name: nginx-config
+      - name: configdir
+        configMap:
+          name: homework-config
+          items:
+          - key: database_url
+            path: database_url
+          - key: api_key
+            path: api_key
+          - key: debug_mode
+            path: debug_mode
