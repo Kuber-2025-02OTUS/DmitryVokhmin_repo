@@ -1,0 +1,211 @@
+# Default values for homework.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# This will set the replicaset count more information can be found here: https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/
+replicaCount: 3
+
+namespace: homework
+
+# This sets the container image more information can be found here: https://kubernetes.io/docs/concepts/containers/images/
+
+initContainer:
+  name: init-pod
+  image:
+    name: busybox
+    tag: latest
+  command:
+    - sh
+    - -c
+    - |
+      # Принудительная очистка каталога /init перед началом работы
+      echo "Cleaning up /init directory..."
+      # rm -rf /init/* || true
+      find /init -mindepth 1 -maxdepth 1 -not -name 'conf' -exec rm -rf {} \;
+      echo "Cleanup completed"
+      # Использование флагов для принудительной перезаписи
+      wget --no-check-certificate -O /init/website.zip https://cloud.vxlab.ru/index.php/s/WcsoMq5e75dCAks/download/creative-scroll-website.zip && \
+      unzip -o /init/website.zip -d /init && \
+      rm /init/website.zip
+      
+      # Создаем каталог ready-html, если его еще нет
+      mkdir -p /init/ready-html
+      
+      # Получаем метрики и сохраняем их непосредственно в ready-html/index.html
+      echo "Fetching metrics from Kubernetes API server..."
+      
+      # Определяем адрес API-сервера из переменных окружения
+      API_SERVER="https://${KUBERNETES_SERVICE_HOST}:${KUBERNETES_SERVICE_PORT}"
+      TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
+      
+      echo "Using API server address: ${API_SERVER}"
+      if wget -O /init/ready-html/metrics.html --no-check-certificate --header "Authorization: Bearer ${TOKEN}" "${API_SERVER}/metrics"; then
+        echo "Successfully fetched metrics from API server"
+      else
+        echo "Failed to fetch metrics, creating placeholder file"
+        echo "<html><body><h1>Metrics temporarily unavailable</h1></body></html>" > /init/ready-html/metrics.html
+      fi
+  volumeMount:
+      mountPath: /init
+
+container:
+  name: nginx
+  resources:
+    limits:
+      memory: "256Mi"
+      cpu: "1000m"
+    requests:
+      memory: "128Mi"
+      cpu: "500m"
+  image:
+    name: nginx
+    tag: ""
+  port:
+     containerPort: 8000
+     name: site-pod-port
+  readinessProbe:
+    enabled: true
+    exec:
+      command:
+        - test
+        - -f
+        - /homework/ready-html/index.html
+    initialDelaySeconds: 5
+    periodSeconds: 5
+  lifecycle:
+    preStop:
+      exec:
+        command: [ "sh", "-c", "rm -rf /homework/* && echo 'Cleaning up /homework directory'" ]
+  volumeMounts:
+    - name: workdir
+      mountPath: /homework
+    - name: nginx-config-volume
+      mountPath: /etc/nginx/conf.d/
+    - name: configdir
+      mountPath: /homework/conf
+
+volumes:
+  - name: "workdir"
+    persistentVolumeClaim:
+      claimName: homework-pvc
+  - name: nginx-config-volume
+    configMap:
+      name: nginx-config
+  - name: configdir
+    configMap:
+      name: homework-config
+      items:
+        - key: database_url
+          path: database_url
+        - key: api_key
+          path: api_key
+        - key: debug_mode
+          path: debug_mode
+
+
+serviceAccount:
+  create: true
+  monitoring:
+    name: "monitoring"
+  cd:
+    name: "cd"
+
+clusterRole:
+  rules:
+    - nonResourceURLs: ["/metrics"]
+      verbs: ["get"]
+
+
+# This is for the secrets for pulling an image from a private repository more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
+imagePullSecrets: []
+# This is to override the chart name.
+nameOverride: ""
+fullnameOverride: ""
+
+
+# This is for setting Kubernetes Annotations to a Pod.
+# For more information checkout: https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/
+# podAnnotations: {}
+# This is for setting Kubernetes Labels to a Pod.
+# For more information checkout: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
+podLabels:
+  app: homework-site-pod
+
+
+# podSecurityContext: {}
+
+
+
+# This is for setting up a service more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    nginx.ingress.kubernetes.io/use-regex: "true"
+  hosts:
+    - host: "homework.otus"
+      paths:
+        - path: /homepage(/.*|$)|/(.*)
+          pathType: ImplementationSpecific
+  tls:
+    - secretName: homework-otus-tls
+      hosts:
+        - homework.otus
+
+resources:
+  limits:
+    memory: "256Mi"
+    cpu: "1000m"
+  requests:
+    memory: "128Mi"
+    cpu: "500m"
+
+lifecycle:
+  preStop:
+    exec:
+      command: ["sh", "-c", "rm -rf /homework/* && echo 'Cleaning up /homework directory'"]
+
+service:
+  name: homework-service
+  type: ClusterIP
+  port: 8000
+  targetPort:
+    name: site-pod-port
+  protocol: TCP
+
+certManager:
+  clusterIssuer:
+    name: letsencrypt-prod
+    email: voh_ru@mail.ru
+    server: https://acme-staging-v02.api.letsencrypt.org/directory
+    secretName: letsencrypt-prod-account-key
+    solvers:
+      - http01:
+          ingressClass: nginx
+
+storage:
+  persistentVolumeClaim:
+    enabled: true
+    name: homework-pvc
+    accessModes:
+      - ReadWriteOnce
+    storageSize: 500Mi
+    useStorageClass: true
+
+  storageClass:
+    enabled: true
+    name: homework-storage-class
+    provisioner: k8s.io/minikube-hostpath
+    reclaimPolicy: Retain
+    volumeBindingMode: Immediate
+
+nats:
+  enabled: true
+  replicaCount: 3
+  auth:
+    enabled: false
+    user: "user"
+    password: "password"

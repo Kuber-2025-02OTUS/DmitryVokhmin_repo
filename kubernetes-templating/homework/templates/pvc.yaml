@@ -1,0 +1,18 @@
+{{- if .Values.storage.persistentVolumeClaim.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Values.storage.persistentVolumeClaim.name }}
+  namespace: {{ include "homework.namespace" . }}
+spec:
+  accessModes:
+  {{- range .Values.storage.persistentVolumeClaim.accessModes }}
+    - {{ . }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.storage.persistentVolumeClaim.storageSize }}
+  {{- if .Values.storage.persistentVolumeClaim.useStorageClass }}
+  storageClassName: {{ .Values.storage.storageClass.name }}
+  {{- end }}
+{{- end }}

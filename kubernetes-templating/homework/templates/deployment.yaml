@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Chart.Name }}
+  namespace: {{ include "homework.namespace" . }}
+  labels:
+    app: {{ .Chart.Name }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+  selector:
+    matchLabels:
+      {{- include "homework.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ .Values.serviceAccount.monitoring.name }}
+      containers:
+      - name: {{ .Values.container.name }}
+        {{- with .Values.container.resources}}
+        resources:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        image: {{ .Values.container.image.name }}{{- if .Values.container.image.tag }}:{{ .Values.container.image.tag }}{{- end }}
+        {{- with .Values.container.readinessProbe }}
+          {{- if .enabled }}
+        readinessProbe:
+          {{- $readinessProbe := omit . "enabled" }}
+          {{- toYaml $readinessProbe | nindent 10 }}
+          {{- end }}
+        {{- end }}
+        {{- with .Values.container.lifecycle }}
+        lifecycle:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        ports:
+        - name: {{ .Values.container.port.name }}
+          containerPort: {{ .Values.container.port.containerPort }}
+          protocol: TCP
+        {{- with .Values.container.volumeMounts }}
+        volumeMounts:
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
+      initContainers:
+      - name: {{ .Values.initContainer.name }}
+        image: "{{ .Values.initContainer.image.name }}:{{ .Values.initContainer.image.tag | default .Chart.AppVersion }}"
+        command:
+        {{- toYaml .Values.initContainer.command | nindent 8 }}
+        volumeMounts:
+        - name:  {{ index .Values.volumes 0 "name" }}
+          mountPath: {{ .Values.initContainer.volumeMount.mountPath }}
+      dnsPolicy: Default
+      {{- with .Values.volumes }}
+      volumes:
+        {{- toYaml . | nindent 6 }}
+      {{- end }}

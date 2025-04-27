@@ -12,3 +12,6 @@ kubernetes-networks:
 
 kubernetes-security:
    - kubernetes-security/*
+   
+kubernetes-templating:
+   - kubernetes-templating/*

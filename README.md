@@ -215,3 +215,29 @@ kubectl create token cd -n homework --duration=24h > token
   Для этого был изменен блок initContainers[0].command в deployment.yaml для получения метрик и сохранения их в файл /init/ready-html/metrics.html
   В основном контейнере этот файл будет доступен в директории /homework/ready-html/metrics.html
   Просмотр страницы будет доступен по адресу https://homework.otus/metrics.html
+
+
+## Homework 6: Шаблонизация манифестов приложения, использование Helm
+
+1. Был создан helmchart для развертывания предыдущих домшних заданий.
+Папка /kubernetes-templating/homework/
+Папка содержит values.yaml - в соответствии с заданием, chart.yaml и папку /templates/ с описанием шаблонов манифестов.
+
+Для установки helmchart-s следует запустить команду helm install находясь в папке с хэлмом (/kubernetes-templating/homework/):
+```
+helm install homework-release . --namespace homework
+```
+
+
+2. Был создан helmfile для развертывания нескольких релизов Kafka в разных неймспейсах (prod и dev).
+В файле YAML есть разделы как `set:` так и `values:` оба служат одной и той же цели - переопределение дефолтных значений в values.yaml. Поэтому разделы содержат лишь небольшое количество значений, Так как остальные уже были определены в values.yaml в helmchart-e.
+
+ Для установки релиза Halm чата с помощью helmfile, находясь в папаке с `helmfile.yaml` следует запустить команду:
+ ```
+ helmfile apply
+ ```
+
+Для удаления релиза следует запустить команду:
+```
+helmfile delete
+```
